@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -306,12 +306,16 @@ def test_generate_answer_ollama_provider_routes_to_ollama_client() -> None:
 @pytest.mark.parametrize(
     "provider_error",
     [
-        APIConnectionError(request=httpx.Request("POST", "http://llm.test/v1/chat")),
+        # openai 3.x type hints expect httpx2, but the exception only stores the request.
+        APIConnectionError(request=cast(Any, httpx.Request("POST", "http://llm.test/v1/chat"))),
         NotFoundError(
             "model not found",
-            response=httpx.Response(
-                404,
-                request=httpx.Request("POST", "http://llm.test/v1/chat"),
+            response=cast(
+                Any,
+                httpx.Response(
+                    404,
+                    request=httpx.Request("POST", "http://llm.test/v1/chat"),
+                ),
             ),
             body=None,
         ),
