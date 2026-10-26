@@ -17,10 +17,12 @@ apps/web/
 │   ├── app/             # Next.js App Router pages & layouts
 │   ├── components/      # Reusable React components
 │   ├── lib/             # API client, utilities, types
+│   ├── test/            # Vitest setup, fixtures and render helpers
 │   └── styles/          # Global CSS / design tokens
 ├── public/              # Static assets
 ├── next.config.ts
 ├── package.json
+├── vitest.config.mts
 └── README.md            # ← you are here
 ```
 
@@ -37,3 +39,17 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
+
+## Checks
+
+Run these before opening a pull request:
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+`npm test` uses Vitest with jsdom. Tests mock `@/lib/api`, so they do not need
+the API, Qdrant or Ollama running. Shared helpers live in `src/test`
+(`fixtures.ts`, `render.tsx`, `setup.ts`).
