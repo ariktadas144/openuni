@@ -20,12 +20,15 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
+from openai import APIConnectionError, NotFoundError
 
 from app.rag.generation import (
     _NO_INFORMATION_ANSWER,
     _SYSTEM_PROMPT,
     GeneratedAnswer,
+    LLMProviderUnavailable,
     _build_user_message,
     _parse_llm_response,
     _resolve_client_and_model,
@@ -295,3 +298,38 @@ def test_generate_answer_ollama_provider_routes_to_ollama_client() -> None:
     # Parsed result should be correct
     assert "1 September" in result.answer
     assert result.sources[0].source == "calendar.pdf"
+
+
+# ── generate_answer — provider failures ──────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "provider_error",
+    [
+        APIConnectionError(request=httpx.Request("POST", "http://llm.test/v1/chat")),
+        NotFoundError(
+            "model not found",
+            response=httpx.Response(
+                404,
+                request=httpx.Request("POST", "http://llm.test/v1/chat"),
+            ),
+            body=None,
+        ),
+    ],
+)
+def test_generate_answer_wraps_provider_errors(provider_error: Exception) -> None:
+    chunks = [_make_chunk("Info.", "doc.pdf")]
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.side_effect = provider_error
+
+    with pytest.raises(LLMProviderUnavailable):
+        generate_answer("Any info?", chunks=chunks, client=mock_client)
+
+
+def test_generate_answer_does_not_swallow_programming_errors() -> None:
+    chunks = [_make_chunk("Info.", "doc.pdf")]
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.side_effect = RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        generate_answer("Any info?", chunks=chunks, client=mock_client)
