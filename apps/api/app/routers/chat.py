@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.core.universities import get_university
 from app.models.chat import ChatRequest, ChatResponse, SourceItem
-from app.rag.generation import generate_answer
+from app.rag.generation import LLMProviderUnavailable, generate_answer
 from app.rag.retrieval import retrieve_chunks
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,14 @@ async def chat(body: ChatRequest) -> ChatResponse:
     chunks = retrieve_chunks(university_slug=body.university_slug, question=body.question)
 
     # ── Generation ────────────────────────────────────────────────────────────
-    generated = generate_answer(question=body.question, chunks=chunks)
+    try:
+        generated = generate_answer(question=body.question, chunks=chunks)
+    except LLMProviderUnavailable as exc:
+        logger.warning("chat generation unavailable: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Answer generation is temporarily unavailable. Please try again shortly.",
+        ) from exc
 
     return ChatResponse(
         answer=generated.answer,

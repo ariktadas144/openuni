@@ -21,7 +21,11 @@ from fastapi.testclient import TestClient
 from app.core import universities
 from app.core.config import get_settings
 from app.main import app
-from app.rag.generation import CitedSource, GeneratedAnswer
+from app.rag.generation import (
+    CitedSource,
+    GeneratedAnswer,
+    LLMProviderUnavailable,
+)
 from app.rag.retrieval import RetrievedChunk
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -171,6 +175,54 @@ def test_chat_no_matching_content_returns_fallback(
     data = response.json()
     assert data["answer"] == _NO_INFORMATION_ANSWER
     assert data["sources"] == []
+
+
+# ── POST /chat — provider outage → 503 ───────────────────────────────────────
+
+
+def test_chat_provider_unavailable_returns_503(client: TestClient, demo_university: None) -> None:
+    """A provider outage maps to a stable, non-leaking 503 response."""
+    chunks = [_make_chunk("Fees are listed in the handbook.", "fees.pdf")]
+
+    with (
+        patch("app.routers.chat.retrieve_chunks", return_value=chunks),
+        patch(
+            "app.routers.chat.generate_answer",
+            side_effect=LLMProviderUnavailable("sk-secret: provider exploded"),
+        ),
+    ):
+        response = client.post(
+            "/chat",
+            json={"university_slug": "demo", "question": "How much is tuition?"},
+        )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Answer generation is temporarily unavailable. Please try again shortly."
+    )
+    assert "sk-secret" not in response.text
+    assert "provider exploded" not in response.text
+
+
+def test_chat_unexpected_generation_error_returns_500(
+    client: TestClient, demo_university: None
+) -> None:
+    """Programming errors are not disguised as provider outages."""
+    chunks = [_make_chunk("Fees are listed in the handbook.", "fees.pdf")]
+    error_client = TestClient(app, raise_server_exceptions=False)
+
+    with (
+        patch("app.routers.chat.retrieve_chunks", return_value=chunks),
+        patch("app.routers.chat.generate_answer", side_effect=RuntimeError("boom")),
+    ):
+        response = error_client.post(
+            "/chat",
+            json={"university_slug": "demo", "question": "How much is tuition?"},
+        )
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Internal server error"
+    assert "boom" not in response.text
 
 
 # ── POST /chat — missing required fields → 422 ───────────────────────────────

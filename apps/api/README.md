@@ -166,6 +166,13 @@ No code changes or restarts beyond updating the env file are required.
 > `generation.py` will return the raw text if the response is not valid
 > JSON, so the app stays functional even with less reliable models.
 
+### Provider outages
+
+If the provider is unreachable, times out, rejects the model name, or rate limits
+the request, `/chat` returns **503** with
+`{"detail": "Answer generation is temporarily unavailable. Please try again shortly."}`.
+The underlying cause is logged server side and is never included in the response.
+
 ---
 
 ### Using OpenAI (default)
