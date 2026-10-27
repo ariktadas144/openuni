@@ -5,11 +5,19 @@ POST /chat — the main RAG endpoint.
 
 Validates the incoming request, delegates to the retrieval and generation
 layers, and returns a structured answer with cited sources.
+
+Retrieval and generation currently use synchronous network clients (``httpx``,
+``QdrantClient`` and the OpenAI SDK).  Both calls are therefore executed in a
+worker thread via Starlette's ``run_in_threadpool`` so a slow embedding, vector
+search or LLM request cannot block the event loop (and with it ``/health`` or
+other in-flight requests).  Keeping the synchronous helpers unchanged also
+keeps them straightforward to unit test.
 """
 
 import logging
 
 from fastapi import APIRouter, HTTPException, status
+from starlette.concurrency import run_in_threadpool
 
 from app.core.universities import get_university
 from app.models.chat import ChatRequest, ChatResponse, SourceItem
@@ -60,11 +68,20 @@ async def chat(body: ChatRequest) -> ChatResponse:
     )
 
     # ── Retrieval ─────────────────────────────────────────────────────────────
-    chunks = retrieve_chunks(university_slug=body.university_slug, question=body.question)
+    # Offload the blocking HTTP/vector-store calls so the event loop stays free.
+    chunks = await run_in_threadpool(
+        retrieve_chunks,
+        university_slug=body.university_slug,
+        question=body.question,
+    )
 
     # ── Generation ────────────────────────────────────────────────────────────
     try:
-        generated = generate_answer(question=body.question, chunks=chunks)
+        generated = await run_in_threadpool(
+            generate_answer,
+            question=body.question,
+            chunks=chunks,
+        )
     except LLMProviderUnavailable as exc:
         logger.warning("chat generation unavailable: %s", exc)
         raise HTTPException(
