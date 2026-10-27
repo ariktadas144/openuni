@@ -347,55 +347,118 @@ select:focus, input[type="text"]:focus {
   line-height: 1.7;
 }
 
+.answer-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
 .answer-card h2 {
   font-size: 1.25rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0;
   color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.sources-section h3 {
-  font-size: 1.1rem;
-  margin-bottom: 1rem;
+.answer-source-count {
   color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
-.sources-grid {
+.answer-text p {
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.answer-text p + p {
+  margin-top: 1rem;
+}
+
+.answer-empty {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.sources-section h3 {
+  align-items: baseline;
+  color: var(--text-secondary);
+  display: flex;
+  font-size: 1.1rem;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.source-count {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  padding: 0.05rem 0.5rem;
+}
+
+.sources-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 1rem;
+  gap: 0.85rem;
+  list-style: none;
 }
 
 .source-card {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 1rem;
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  padding: 1rem 1.1rem;
+  transition: border-color 0.2s ease;
 }
 
 .source-card:hover {
-  transform: translateY(-2px);
   border-color: var(--text-secondary);
 }
 
-.source-title {
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--accent-color);
+.source-meta {
+  align-items: baseline;
+  display: flex;
+  gap: 0.6rem;
   margin-bottom: 0.5rem;
-  word-break: break-all;
+}
+
+.source-index {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.source-title {
+  color: var(--accent-color);
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .source-snippet {
-  font-size: 0.8rem;
   color: var(--text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.sources-empty {
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  padding: 1rem;
 }
 
 /* Error State */
