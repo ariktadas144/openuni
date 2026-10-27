@@ -147,6 +147,22 @@ at the repo root for the full list with descriptions.
 
 ---
 
+## Concurrency
+
+`POST /chat` is an `async` handler, but retrieval and generation use synchronous
+clients (`httpx`, `QdrantClient` and the OpenAI SDK). Both stages are executed with
+Starlette's `run_in_threadpool`, so slow embedding, vector-search or LLM calls do not
+block the event loop. `/health`, `/ready` and concurrent `/chat` requests stay
+responsive while a chat request is waiting on a provider.
+
+The retrieval and generation helpers remain synchronous and unchanged, which keeps
+the unit-test surface simple; only the router is responsible for moving them off the
+event loop. `tests/test_chat.py` includes a regression test that blocks retrieval in a
+worker thread and asserts that `/health` still responds before the chat request
+finishes.
+
+---
+
 ## LLM Provider
 
 The generation step supports two providers, switchable via `LLM_PROVIDER` in your `.env`.

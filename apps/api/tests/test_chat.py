@@ -10,6 +10,8 @@ the real FastAPI routing, validation, and exception handling.
 
 from __future__ import annotations
 
+import asyncio
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
@@ -17,6 +19,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 from app.core import universities
 from app.core.config import get_settings
@@ -110,6 +113,55 @@ def test_chat_valid_question_returns_grounded_answer(
 
     mock_retrieve.assert_called_once_with(university_slug="demo", question="How much is tuition?")
     mock_generate.assert_called_once()
+
+
+# ── POST /chat — concurrency ─────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_chat_does_not_block_the_event_loop_during_retrieval(
+    demo_university: None,
+) -> None:
+    """A slow retrieval runs in a worker thread, so /health stays responsive.
+
+    If ``retrieve_chunks`` were called directly from the async handler, the
+    event loop would be blocked inside the sync function and this test would
+    deadlock until the delayed release (or fail because the chat request
+    completed before /health could be served).
+    """
+    retrieval_started = threading.Event()
+    release_retrieval = threading.Event()
+
+    def slow_retrieve(*, university_slug: str, question: str) -> list[RetrievedChunk]:
+        retrieval_started.set()
+        release_retrieval.wait(timeout=5.0)
+        return []
+
+    transport = ASGITransport(app=app)
+
+    with patch("app.routers.chat.retrieve_chunks", side_effect=slow_retrieve):
+        async with AsyncClient(transport=transport, base_url="http://testserver") as async_client:
+            chat_request = asyncio.create_task(
+                async_client.post(
+                    "/chat",
+                    json={"university_slug": "demo", "question": "When is the exam?"},
+                )
+            )
+            try:
+                assert await asyncio.to_thread(retrieval_started.wait, 1.0)
+                # While the worker thread is blocked, the chat request must
+                # still be pending and unrelated endpoints must respond.
+                assert not chat_request.done()
+                health_response = await asyncio.wait_for(async_client.get("/health"), timeout=1.0)
+                assert health_response.status_code == 200
+                assert not chat_request.done()
+            finally:
+                release_retrieval.set()
+
+            chat_response = await asyncio.wait_for(chat_request, timeout=2.0)
+
+    assert chat_response.status_code == 200
+    assert chat_response.json()["sources"] == []
 
 
 # ── POST /chat — invalid university → 404 ────────────────────────────────────
