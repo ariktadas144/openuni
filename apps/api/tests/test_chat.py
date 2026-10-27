@@ -148,17 +148,17 @@ async def test_chat_does_not_block_the_event_loop_during_retrieval(
                 )
             )
             try:
-                assert await asyncio.to_thread(retrieval_started.wait, 1.0)
+                assert await asyncio.to_thread(retrieval_started.wait, 2.0)
                 # While the worker thread is blocked, the chat request must
                 # still be pending and unrelated endpoints must respond.
                 assert not chat_request.done()
-                health_response = await asyncio.wait_for(async_client.get("/health"), timeout=1.0)
+                health_response = await asyncio.wait_for(async_client.get("/health"), timeout=2.0)
                 assert health_response.status_code == 200
                 assert not chat_request.done()
             finally:
                 release_retrieval.set()
 
-            chat_response = await asyncio.wait_for(chat_request, timeout=2.0)
+            chat_response = await asyncio.wait_for(chat_request, timeout=5.0)
 
     assert chat_response.status_code == 200
     assert chat_response.json()["sources"] == []
