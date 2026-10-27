@@ -3,6 +3,25 @@
 import { useState, useEffect } from "react";
 import { sendChatMessage, ChatResponse, getUniversities } from "@/lib/api";
 
+function AnswerText({ text }: { text: string }) {
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph.length > 0);
+
+  if (paragraphs.length === 0) {
+    return <p className="answer-empty">The API returned an empty answer.</p>;
+  }
+
+  return (
+    <div className="answer-text" data-testid="answer-text">
+      {paragraphs.map((paragraph, index) => (
+        <p key={index}>{paragraph}</p>
+      ))}
+    </div>
+  );
+}
+
 export function ChatWorkspace() {
   const [universities, setUniversities] = useState<{ slug: string; name: string }[]>([]);
   const [university, setUniversity] = useState("demo");
@@ -90,42 +109,79 @@ export function ChatWorkspace() {
           {loading ? "Searching..." : "Ask Question"}
         </button>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && (
+          <div className="error-message" role="alert">
+            {error}
+          </div>
+        )}
       </form>
 
       {loading && (
-        <div className="loading-container">
-          <div className="spinner"></div>
+        <div className="loading-container" role="status" aria-live="polite">
+          <div className="spinner" aria-hidden="true"></div>
           <p>Analyzing university documents...</p>
         </div>
       )}
 
       {response && !loading && (
-        <div className="results-container">
-          <div className="answer-card">
-            <h2>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-              </svg>
-              Answer
-            </h2>
-            <div dangerouslySetInnerHTML={{ __html: response.answer.replace(/\n/g, '<br/>') }} />
-          </div>
-
-          {response.sources.length > 0 && (
-            <div className="sources-section">
-              <h3>Sources ({response.sources.length})</h3>
-              <div className="sources-grid">
-                {response.sources.map((source, index) => (
-                  <div key={index} className="source-card">
-                    <div className="source-title">{source.source}</div>
-                    <div className="source-snippet">&quot;{source.text_snippet}&quot;</div>
-                  </div>
-                ))}
-              </div>
+        <section
+          className="results-container"
+          aria-labelledby="answer-heading"
+          aria-live="polite"
+        >
+          <article className="answer-card">
+            <div className="answer-header">
+              <h2 id="answer-heading">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Answer
+              </h2>
+              <span className="answer-source-count">
+                {response.sources.length === 0
+                  ? "No sources cited"
+                  : `${response.sources.length} source${response.sources.length === 1 ? "" : "s"} cited`}
+              </span>
             </div>
-          )}
-        </div>
+            <AnswerText text={response.answer} />
+          </article>
+
+          <section className="sources-section" aria-labelledby="sources-heading">
+            <h3 id="sources-heading">
+              Sources <span className="source-count">{response.sources.length}</span>
+            </h3>
+            {response.sources.length === 0 ? (
+              <p className="sources-empty">
+                No supporting sources were returned for this answer.
+              </p>
+            ) : (
+              <ol className="sources-list">
+                {response.sources.map((source, index) => (
+                  <li className="source-card" key={`${source.source}-${index}`}>
+                    <div className="source-meta">
+                      <span className="source-index" aria-hidden="true">
+                        {index + 1}
+                      </span>
+                      <span className="source-title">{source.source || "Unknown source"}</span>
+                    </div>
+                    <blockquote className="source-snippet">{source.text_snippet}</blockquote>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        </section>
       )}
     </main>
   );

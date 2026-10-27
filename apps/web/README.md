@@ -9,22 +9,27 @@ This package contains the **OpenUni web application**, built with [Next.js](http
 - Display the academic calendar, student dashboard, and document explorer.
 - Talk exclusively to `apps/api` — no direct database or vector-store access.
 
-## Planned structure
+## Structure
 
 ```
 apps/web/
 ├── src/
 │   ├── app/             # Next.js App Router pages & layouts
-│   ├── components/      # Reusable React components
+│   ├── components/      # Shared shell, chat workspace and calendar view
 │   ├── lib/             # API client, utilities, types
 │   ├── test/            # Vitest setup, fixtures and render helpers
-│   └── styles/          # Global CSS / design tokens
+│   └── app/globals.css  # Global CSS / design tokens
 ├── public/              # Static assets
 ├── next.config.ts
 ├── package.json
 ├── vitest.config.mts
 └── README.md            # ← you are here
 ```
+
+The root layout provides the shared OpenUni shell: a branded header with
+keyboard-accessible links to **Ask** (`/`) and **Calendar** (`/calendar`), a compact
+footer, page metadata and a skip link. Route pages stay server components that export
+metadata and render the interactive client views from `src/components`.
 
 ## Getting started
 
