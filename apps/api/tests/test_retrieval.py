@@ -43,9 +43,16 @@ def test_retrieve_chunks_returns_ranked_matches(
 ) -> None:
     monkeypatch.setattr(retrieval, "_embed_question", lambda **_: [0.1, 0.2, 0.3])
 
+    clients = []
+
     class FakeQdrantClient:
         def __init__(self, *, url: str):
             self.url = url
+            self.closed = False
+            clients.append(self)
+
+        def close(self) -> None:
+            self.closed = True
 
         def query_points(
             self,
@@ -87,6 +94,7 @@ def test_retrieve_chunks_returns_ranked_matches(
     assert chunks[0].source == "handbook.pdf"
     assert chunks[0].score == 0.91
     assert chunks[1].source == "fees.md"
+    assert len(clients) == 1 and clients[0].closed
 
 
 def test_retrieve_chunks_returns_empty_for_missing_collection(
@@ -94,9 +102,16 @@ def test_retrieve_chunks_returns_empty_for_missing_collection(
 ) -> None:
     monkeypatch.setattr(retrieval, "_embed_question", lambda **_: [0.1, 0.2, 0.3])
 
+    clients = []
+
     class FakeQdrantClient:
         def __init__(self, *, url: str):
             self.url = url
+            self.closed = False
+            clients.append(self)
+
+        def close(self) -> None:
+            self.closed = True
 
         def query_points(
             self,
@@ -118,3 +133,27 @@ def test_retrieve_chunks_returns_empty_for_missing_collection(
     chunks = retrieval.retrieve_chunks("demo", "Any scholarships?")
 
     assert chunks == []
+    assert len(clients) == 1 and clients[0].closed
+
+
+def test_retrieve_chunks_closes_client_on_query_error(
+    temp_universities_dir: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(retrieval, "_embed_question", lambda **_: [0.1, 0.2, 0.3])
+    clients = []
+
+    class FakeQdrantClient:
+        def __init__(self, *, url: str):
+            self.closed = False
+            clients.append(self)
+
+        def query_points(self, **kwargs: object) -> None:
+            raise RuntimeError("query failed")
+
+        def close(self) -> None:
+            self.closed = True
+
+    monkeypatch.setattr(retrieval, "QdrantClient", FakeQdrantClient)
+    with pytest.raises(RuntimeError, match="query failed"):
+        retrieval.retrieve_chunks("demo", "Any scholarships?")
+    assert len(clients) == 1 and clients[0].closed

@@ -66,6 +66,8 @@ def retrieve_chunks(university_slug: str, question: str, top_k: int = 5) -> list
         if exc.status_code == 404:
             return []
         raise
+    finally:
+        qdrant.close()
     points = result.points
 
     chunks: list[RetrievedChunk] = []
